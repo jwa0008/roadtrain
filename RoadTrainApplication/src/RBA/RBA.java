@@ -7,6 +7,7 @@ import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.Random;
 import java.util.Scanner;
 
 
@@ -35,6 +36,8 @@ public class RBA {
 		}
 	}
 	
+	
+	//loops to listen for a message. 
 	public void listenForMessage(){
 		byte[] recieved = new byte[4096];
 		while(listen){
@@ -44,6 +47,8 @@ public class RBA {
 				String packetInfo = new String(receivePacket.getData());
 				System.out.println(packetInfo);
 				parsePacket(packetInfo);
+				checkShouldForward();
+				//This break is done for testing
 				break;
 				
 			} catch (IOException e) {
@@ -53,12 +58,15 @@ public class RBA {
 		}
 	}
 	
+	
+	//Parse the packet that is recieved
 	private void parsePacket(String packetInfo){
 		Scanner packetScanner = new Scanner(packetInfo);
 		packetScanner.useDelimiter(",");
 		
 		//The packet contains sender, lastHop, times forwarded, message
 		currentSender = packetScanner.nextInt();
+		currentSeqNum = packetScanner.nextInt();
 		currentLastHop = packetScanner.nextInt();
 		currentTimesForwarded = packetScanner.nextInt();
 		currentMessage = packetScanner.next();
@@ -66,8 +74,9 @@ public class RBA {
 		packetScanner.close();
 	}
 	
+	
+	//Forwards the message to connecting cars.
 	public void forwardMessage(){
-		
 		 String packetInfo = currentSender + ","+ currentSeqNum+","+currentUser+","+(currentTimesForwarded+1)+","+currentMessage;
 		 byte[] sendData = new byte[4096];
 		 sendData = packetInfo.getBytes();
@@ -87,14 +96,54 @@ public class RBA {
 		 
 	}
 	
+	
+	//Checks to see if a message should be forwarded
+	private boolean checkShouldForward(){
+		
+		boolean returnVal = true;
+		
+		//Checks sequence number. If it's the same, it uses the RBA to determine if it should be forwarded
+		if(currentSeqNum == cache.get(currentSender - 1).getSeqNum()){
+				int forwards = cache.get(currentSender-1).getNumOfForwards();
+				double probability = 1;
+				
+				for(int i = 1; i <= forwards; i++){
+					probability = probability/2;
+				}
+				
+				if(new Random().nextDouble() <= probability){
+					forwardMessage();
+				}
+				cache.get(currentSender-1).setNumOfForwards(forwards+1);
+			//if the current sequence number is greater, then it automatically caches the message and forwards it.	
+		} else if (currentSeqNum > cache.get(currentSender - 1).getSeqNum()){
+				cacheMessage();
+				forwardMessage();
+		}else{
+			return false;
+		}
+		return returnVal;
+	}
+	
+	private boolean cacheMessage(){	
+		cache.get(currentSender -1).setMessage(currentMessage);
+		cache.get(currentSender-1).setLastHop(currentUser);
+		cache.get(currentSender-1).setNumOfForwards(currentTimesForwarded+1);
+		cache.get(currentSender-1).setSeqNum(currentSeqNum);
+		return true;
+	}
+	
+	
 	public void sendNewMessage(String message, int reciever){
 		
 		//Used a ',' delimited file... The packet contains sender, seqNum, lastHop, times forwarded, message
 		String newPacket = currentUser + ","+ numMessageCreated+ ",-1,0," + message;
 		byte[] send = new byte[4096];
 		send = newPacket.getBytes();
-		DatagramPacket sendPacket = new DatagramPacket(send, send.length);
+		
 		try {
+			InetAddress IPAddress = InetAddress.getByName("localhost");
+			DatagramPacket sendPacket = new DatagramPacket(send, send.length, IPAddress, 9876);
 			socket.send(sendPacket);
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
