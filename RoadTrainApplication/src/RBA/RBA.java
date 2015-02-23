@@ -48,8 +48,6 @@ public class RBA {
 				System.out.println(packetInfo);
 				parsePacket(packetInfo);
 				checkShouldForward();
-				//This break is done for testing
-				break;
 				
 			} catch (IOException e) {
 				// TODO Auto-generated catch block

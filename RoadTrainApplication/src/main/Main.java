@@ -15,7 +15,7 @@ public class Main {
 			RBA r = new RBA(1, port);
 			r.sendNewMessage("Hi", 1);
 			r.listenForMessage();
-			
+
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
