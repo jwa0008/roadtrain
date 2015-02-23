@@ -22,7 +22,7 @@ public class RBA {
 	public RBA(int currentUser, int port) throws SocketException{
 		this.currentUser = currentUser;
 		cache = new ArrayList<TableEntry>();
-		populateCache();
+
 		socket = new DatagramSocket(port);
 		listen = true;
 	}
@@ -31,9 +31,28 @@ public class RBA {
 	//This populates the cache the first time with empty messages. This is necessary but is
 	//done so that each nodes message goes in there car-1 value.
 	private void populateCache(){
-		for(int i = 0; i<10; i++){
-			cache.add(new TableEntry(i+1));
+		cache.add(new TableEntry(currentSender, currentLastHop, currentTimesForwarded, currentSeqNum, currentMessage));
+	}
+	
+	private boolean inCache(){
+		boolean in = false;
+		for(int i = 0; i < cache.size(); i++){
+			if(cache.get(i).getSender() == currentSender){
+				in = true;
+			}
 		}
+		return in;
+	}
+	
+	private int getCacheLocation(){
+		int val = -1;
+		for(int i = 0; i < cache.size(); i++){
+			if(cache.get(i).getSender() == currentSender){
+				val = i;
+			}
+		}
+		
+		return val;
 	}
 	
 	
@@ -96,31 +115,37 @@ public class RBA {
 	
 	
 	//Checks to see if a message should be forwarded
-	private boolean checkShouldForward(){
+	private void checkShouldForward(){
+
 		
-		boolean returnVal = true;
+		if(inCache()){
+			int cacheLoc = getCacheLocation();
 		
-		//Checks sequence number. If it's the same, it uses the RBA to determine if it should be forwarded
-		if(currentSeqNum == cache.get(currentSender - 1).getSeqNum()){
-				int forwards = cache.get(currentSender-1).getNumOfForwards();
-				double probability = 1;
-				
-				for(int i = 1; i <= forwards; i++){
-					probability = probability/2;
-				}
-				
-				if(new Random().nextDouble() <= probability){
+			//Checks sequence number. If it's the same, it uses the RBA to determine if it should be forwarded
+			if(currentSeqNum == cache.get(cacheLoc).getSeqNum()){
+					int forwards = cache.get(cacheLoc).getNumOfForwards();
+					double probability = 1;
+					
+					for(int i = 1; i <= forwards; i++){
+						probability = probability/2;
+					}
+					
+					if(new Random().nextDouble() <= probability){
+						forwardMessage();
+					}
+					cache.get(cacheLoc).setNumOfForwards(forwards+1);
+				//if the current sequence number is greater, then it automatically caches the message and forwards it.	
+			} else if (currentSeqNum > cache.get(cacheLoc).getSeqNum()){
+					cacheMessage();
 					forwardMessage();
-				}
-				cache.get(currentSender-1).setNumOfForwards(forwards+1);
-			//if the current sequence number is greater, then it automatically caches the message and forwards it.	
-		} else if (currentSeqNum > cache.get(currentSender - 1).getSeqNum()){
-				cacheMessage();
-				forwardMessage();
+			}else{
+				//this is where nothing needs to be done because the sequence num < cached seq num
+			}
 		}else{
-			return false;
+			populateCache();
+			forwardMessage();
 		}
-		return returnVal;
+		
 	}
 	
 	private boolean cacheMessage(){	

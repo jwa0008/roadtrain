@@ -27,4 +27,8 @@ public class RoadTrainApp {
 	
 	
 	//METHODS FOR TRUCK
+	//tell cars to slow down or speed up
+	
+	
+	
 }

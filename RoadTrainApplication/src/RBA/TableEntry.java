@@ -12,6 +12,14 @@ public class TableEntry {
 		message = "";
 	}
 	
+	TableEntry(int sender, int lastHop, int numOfForwards, int seqNum, String message){
+		this.sender = sender;
+		this.lastHop = lastHop;
+		this.numOfForwards = numOfForwards;
+		this.seqNum = seqNum;
+		this.message = message;
+	}
+	
 	//setters
 	
 	public void setLastHop(int lastHop){
